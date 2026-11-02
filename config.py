@@ -3,11 +3,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 def _database_url():
     url = os.environ.get('DATABASE_URL') or 'sqlite:///expenses.db'
     if url.startswith('postgres://'):
         url = url.replace('postgres://', 'postgresql://', 1)
+    if url.startswith('postgresql://'):
+        url = url.replace('postgresql://', 'postgresql+psycopg2://', 1)
     return url
 
 
