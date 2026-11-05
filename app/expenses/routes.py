@@ -1,4 +1,6 @@
-from flask import render_template, redirect, url_for, flash, request, abort, jsonify
+import csv
+import io
+from flask import render_template, redirect, url_for, flash, request, abort, jsonify, Response
 from flask_login import login_required, current_user
 from datetime import datetime, date
 import calendar
@@ -63,6 +65,65 @@ def expense_list():
                            expenses=expenses,
                            form=form,
                            total_spending=total_spending)
+
+
+def _csv_safe(value):
+    """Stop spreadsheet apps from running text that starts like a formula."""
+    text = value or ''
+    if text and text[0] in ('=', '+', '-', '@'):
+        return "'" + text
+    return text
+
+
+@bp.route('/expenses/export')
+@login_required
+def export_csv():
+    """Download the expenses (with the same filters as the list page) as a CSV file."""
+    query = Expense.query.filter_by(user_id=current_user.id)
+
+    category = request.args.get('category', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    sort_by = request.args.get('sort_by', 'date_desc')
+
+    if category:
+        query = query.filter_by(category=category)
+    if start_date:
+        try:
+            query = query.filter(Expense.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            query = query.filter(Expense.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    if sort_by == 'date_asc':
+        query = query.order_by(Expense.date.asc())
+    elif sort_by == 'amount_desc':
+        query = query.order_by(Expense.amount.desc())
+    elif sort_by == 'amount_asc':
+        query = query.order_by(Expense.amount.asc())
+    else:
+        query = query.order_by(Expense.date.desc())
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Date', 'Category', 'Description', 'Amount (INR)'])
+    for expense in query.all():
+        writer.writerow([
+            expense.date.isoformat(),
+            expense.category,
+            _csv_safe(expense.description),
+            f'{expense.amount:.2f}',
+        ])
+
+    # utf-8-sig adds a marker so Excel opens the file with the right encoding
+    data = output.getvalue().encode('utf-8-sig')
+    filename = f'expenses_{date.today().isoformat()}.csv'
+    return Response(data, mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 
 @bp.route('/dashboard')
