@@ -44,7 +44,7 @@ class LoginForm(FlaskForm):
 
 
 class ExpenseForm(FlaskForm):
-    amount = FloatField('Amount ($)', validators=[
+    amount = FloatField('Amount (₹)', validators=[
         DataRequired(),
         NumberRange(min=0.01, message='Amount must be greater than 0')
     ])

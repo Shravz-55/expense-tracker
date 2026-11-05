@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from config import Config
+from datetime import datetime
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -11,14 +12,6 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
-
-def create_app(config_class=Config):
-    app = Flask(__name__)
-    app.config.from_object(config_class)
-
-    db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -47,5 +40,9 @@ def create_app(config_class=Config):
     def index():
         from flask import redirect, url_for
         return redirect(url_for('expenses.dashboard'))
+
+    @app.context_processor
+    def inject_year():
+        return {'current_year': datetime.utcnow().year}
 
     return app

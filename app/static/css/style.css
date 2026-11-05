@@ -1,0 +1,15 @@
+.actions-column {
+    width: 120px;
+}
+
+.distribution-column {
+    width: 40%;
+}
+
+.expense-progress {
+    height: 20px;
+}
+
+.expense-progress-bar {
+    width: 0;
+}

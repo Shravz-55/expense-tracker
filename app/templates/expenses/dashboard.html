@@ -22,7 +22,7 @@
                 <h6 class="card-subtitle mb-2 opacity-75">
                     <i class="bi bi-wallet2 me-1"></i>Total Spending
                 </h6>
-                <h2 class="card-title mb-0">${{ "%.2f"|format(analytics.total) }}</h2>
+                <h2 class="card-title mb-0">₹{{ "%.2f"|format(analytics.total) }}</h2>
                 <small class="opacity-75">{{ analytics.count }} expense(s)</small>
             </div>
         </div>
@@ -33,7 +33,7 @@
                 <h6 class="card-subtitle mb-2 opacity-75">
                     <i class="bi bi-calendar-month me-1"></i>This Month
                 </h6>
-                <h2 class="card-title mb-0">${{ "%.2f"|format(analytics.this_month) }}</h2>
+                <h2 class="card-title mb-0">₹{{ "%.2f"|format(analytics.this_month) }}</h2>
                 <small class="opacity-75">current month</small>
             </div>
         </div>
@@ -44,7 +44,7 @@
                 <h6 class="card-subtitle mb-2 opacity-75">
                     <i class="bi bi-calculator me-1"></i>Average Expense
                 </h6>
-                <h2 class="card-title mb-0">${{ "%.2f"|format(analytics.avg_expense) }}</h2>
+                <h2 class="card-title mb-0">₹{{ "%.2f"|format(analytics.avg_expense) }}</h2>
                 <small class="opacity-75">per transaction</small>
             </div>
         </div>
@@ -55,7 +55,7 @@
                 <h6 class="card-subtitle mb-2 opacity-75">
                     <i class="bi bi-funnel me-1"></i>Filtered Total
                 </h6>
-                <h2 class="card-title mb-0">${{ "%.2f"|format(total_spending) }}</h2>
+                <h2 class="card-title mb-0">₹{{ "%.2f"|format(total_spending) }}</h2>
                 <small class="opacity-75">{{ expenses|length }} shown</small>
             </div>
         </div>
@@ -139,7 +139,7 @@
                         <th>Category</th>
                         <th>Description</th>
                         <th class="text-end">Amount</th>
-                        <th class="text-center" style="width: 120px;">Actions</th>
+                        <th class="text-center actions-column">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -157,7 +157,7 @@
                             </span>
                         </td>
                         <td>{{ expense.description or '-' }}</td>
-                        <td class="text-end fw-bold">${{ "%.2f"|format(expense.amount) }}</td>
+                        <td class="text-end fw-bold">₹{{ "%.2f"|format(expense.amount) }}</td>
                         <td class="text-center">
                             <a href="{{ url_for('expenses.edit_expense', id=expense.id) }}"
                                class="btn btn-sm btn-outline-primary" title="Edit">
@@ -177,7 +177,7 @@
                 <tfoot>
                     <tr class="table-light">
                         <td colspan="3" class="fw-bold">Total</td>
-                        <td class="text-end fw-bold">${{ "%.2f"|format(total_spending) }}</td>
+                        <td class="text-end fw-bold">₹{{ "%.2f"|format(total_spending) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -208,7 +208,7 @@
                     <th>Category</th>
                     <th>Amount</th>
                     <th>% of Total</th>
-                    <th style="width: 40%;">Distribution</th>
+                    <th class="distribution-column">Distribution</th>
                 </tr>
             </thead>
             <tbody>
@@ -224,17 +224,17 @@
                             {{ cat }}
                         </span>
                     </td>
-                    <td class="fw-bold">${{ "%.2f"|format(amount) }}</td>
+                    <td class="fw-bold">₹{{ "%.2f"|format(amount) }}</td>
                     <td>{{ "%.1f"|format(amount / analytics.total * 100) }}%</td>
                     <td>
-                        <div class="progress" style="height: 20px;">
+                        <div class="progress expense-progress">
                             <div class="progress-bar
                                 {% if cat == 'Food' %}bg-success
                                 {% elif cat == 'Travel' %}bg-info
                                 {% elif cat == 'Bills' %}bg-warning
                                 {% elif cat == 'Entertainment' %}bg-danger
-                                {% else %}bg-secondary{% endif %}"
-                                style="width: {{ amount / analytics.total * 100 }}%">
+                                {% else %}bg-secondary{% endif %} expense-progress-bar"
+                                data-percent="{{ (amount / analytics.total * 100) | round(2) }}">
                             </div>
                         </div>
                     </td>
@@ -248,12 +248,20 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.expense-progress-bar').forEach(function (el) {
+            const percent = parseFloat(el.dataset.percent || '0');
+            el.style.width = percent + '%';
+        });
+    });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Category data from server
-    const categoryData = {{ analytics.category_totals | tojson }};
-    const monthlyData = {{ analytics.monthly_totals | tojson }};
+    const categoryData = JSON.parse('{{ analytics.category_totals | tojson | safe }}');
+    const monthlyData = JSON.parse('{{ analytics.monthly_totals | tojson | safe }}');
 
     // Category colors
     const categoryColors = {
@@ -306,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return '$' + context.parsed.y.toFixed(2);
+                                return '₹' + context.parsed.y.toFixed(2);
                             }
                         }
                     }
@@ -316,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '$' + value;
+                                return '₹' + value;
                             }
                         }
                     }
@@ -333,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const colors = categories.map(cat => categoryColors[cat] || '#6c757d');
 
         new Chart(categoryCtx, {
-            type: 'doughnut',
+            type: 'pie',
             data: {
                 labels: categories,
                 datasets: [{
@@ -360,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             label: function(context) {
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                return context.label + ': $' + context.parsed.toFixed(2) + ' (' + percentage + '%)';
+                                return context.label + ': ₹' + context.parsed.toFixed(2) + ' (' + percentage + '%)';
                             }
                         }
                     }
