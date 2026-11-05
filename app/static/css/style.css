@@ -26,7 +26,7 @@ body {
 .sidebar {
     --bs-offcanvas-width: 260px;
     --bs-offcanvas-bg: var(--sidebar-bg);
-    --bs-offcanvas-color: #fff;
+    --bs-offcanvas-color: #7c5f5f;
     background: var(--sidebar-bg);
     color: #fff;
 }
@@ -146,4 +146,62 @@ a.stat-link:hover .stat-card { transform: translateY(-3px); box-shadow: 0 8px 24
 @media (max-width: 991.98px) {
     .content { padding: 1rem; }
     .topbar { padding: .75rem 1rem; }
+}
+
+/* ===== Make the "Expense Tracker" name stand out ===== */
+.sidebar-brand {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: .3px;
+    color: darkblue !important;
+    opacity: 1 !important;
+}
+.sidebar-brand .brand-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+}
+.guest-brand {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1e1b4b !important;
+    opacity: 1 !important;
+}
+.guest-brand .brand-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 1.5rem;
+}
+
+/* ===== Dark "Expense Tracker" name on light pages ===== */
+.guest-brand,
+.guest-brand * {
+    color: #111827 !important;
+    opacity: 1 !important;
+}
+.guest-brand .brand-icon {
+    color: #ffffff !important;   /* keep the icon white on its purple square */
+}
+
+/* Darker headings and body text on every page */
+h1, h2, h3, h4, h5, h6,
+.card-title, .card-header h5 {
+    color: #111827;
+}
+body {
+    color: #1f2937;
+}
+
+/* Darker username and email in sidebar */
+
+.sidebar-user .name,
+.sidebar-user strong {
+    color: #17212B !important;
+    font-weight: 700 !important;
+}
+
+.sidebar-user small {
+    color: #263746 !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
 }
