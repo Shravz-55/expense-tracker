@@ -1,6 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, date
+import calendar
 from collections import defaultdict
 from sqlalchemy import func, extract
 from app import db
@@ -9,9 +10,9 @@ from app.models import Expense
 from app.forms import ExpenseForm, FilterForm
 
 
-@bp.route('/dashboard')
+@bp.route('/expenses')
 @login_required
-def dashboard():
+def expense_list():
     form = FilterForm()
     query = Expense.query.filter_by(user_id=current_user.id)
 
@@ -54,19 +55,56 @@ def dashboard():
 
     expenses = query.all()
 
-    # Calculate totals for display
+    # Total of the expenses currently shown
     total_spending = sum(e.amount for e in expenses)
 
-    # Get analytics data (unfiltered for charts)
+    return render_template('expenses/list.html',
+                           title='Expenses',
+                           expenses=expenses,
+                           form=form,
+                           total_spending=total_spending)
+
+
+@bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Overview page: summary cards and the five latest expenses."""
     analytics = get_analytics_data(current_user.id)
+
+    recent_expenses = (Expense.query
+                       .filter_by(user_id=current_user.id)
+                       .order_by(Expense.date.desc(), Expense.id.desc())
+                       .limit(5)
+                       .all())
+
+    top_category = None
+    if analytics['category_totals']:
+        top_category = max(analytics['category_totals'],
+                           key=analytics['category_totals'].get)
+
+    # Date range of the current month (used by the "This Month" card link)
+    today = date.today()
+    month_start = today.replace(day=1).isoformat()
+    month_end = today.replace(
+        day=calendar.monthrange(today.year, today.month)[1]).isoformat()
 
     return render_template('expenses/dashboard.html',
                            title='Dashboard',
-                           expenses=expenses,
-                           form=form,
-                           total_spending=total_spending,
-                           categories=Expense.CATEGORIES,
-                           analytics=analytics)
+                           analytics=analytics,
+                           recent_expenses=recent_expenses,
+                           top_category=top_category,
+                           month_start=month_start,
+                           month_end=month_end)
+
+
+@bp.route('/analytics')
+@login_required
+def analytics():
+    """Charts, totals and the category breakdown."""
+    data = get_analytics_data(current_user.id)
+    return render_template('expenses/analytics.html',
+                           title='Analytics',
+                           analytics=data)
 
 
 def get_analytics_data(user_id):
@@ -156,7 +194,7 @@ def add_expense():
             db.session.add(expense)
             db.session.commit()
             flash('Expense added successfully!', 'success')
-            return redirect(url_for('expenses.dashboard'))
+            return redirect(url_for('expenses.expense_list'))
         except Exception:
             db.session.rollback()
             flash('An error occurred while adding the expense. Please try again.', 'danger')
@@ -178,7 +216,7 @@ def edit_expense(id):
     # Ensure user owns this expense
     if expense.user_id != current_user.id:
         flash('You do not have permission to edit this expense.', 'danger')
-        return redirect(url_for('expenses.dashboard'))
+        return redirect(url_for('expenses.expense_list'))
 
     form = ExpenseForm(obj=expense)
     if form.validate_on_submit():
@@ -189,7 +227,7 @@ def edit_expense(id):
             expense.description = form.description.data
             db.session.commit()
             flash('Expense updated successfully!', 'success')
-            return redirect(url_for('expenses.dashboard'))
+            return redirect(url_for('expenses.expense_list'))
         except Exception:
             db.session.rollback()
             flash('An error occurred while updating the expense. Please try again.', 'danger')
@@ -207,7 +245,7 @@ def delete_expense(id):
     # Ensure user owns this expense
     if expense.user_id != current_user.id:
         flash('You do not have permission to delete this expense.', 'danger')
-        return redirect(url_for('expenses.dashboard'))
+        return redirect(url_for('expenses.expense_list'))
 
     try:
         db.session.delete(expense)
@@ -217,4 +255,4 @@ def delete_expense(id):
         db.session.rollback()
         flash('An error occurred while deleting the expense. Please try again.', 'danger')
 
-    return redirect(url_for('expenses.dashboard'))
+    return redirect(url_for('expenses.expense_list'))

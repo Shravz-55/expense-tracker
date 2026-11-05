@@ -3,81 +3,47 @@
 {% block title %}Edit Expense - Expense Tracker{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit Expense</h5>
-                <form action="{{ url_for('expenses.delete_expense', id=expense.id) }}"
-                      method="POST" class="d-inline"
-                      onsubmit="return confirm('Are you sure you want to delete this expense?');">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                        <i class="bi bi-trash me-1"></i>Delete
-                    </button>
-                </form>
+<div class="card shadow-sm border-0">
+    <div class="card-header">
+        <h3 class="mb-0">Edit Expense</h3>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST" novalidate>
+            {{ form.hidden_tag() }}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    {{ form.amount.label(class="form-label") }}
+                    {{ form.amount(class="form-control", placeholder="0.00") }}
+                    {% if form.amount.errors %}
+                        <div class="text-danger small mt-1">{% for error in form.amount.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    {{ form.category.label(class="form-label") }}
+                    {{ form.category(class="form-select") }}
+                    {% if form.category.errors %}
+                        <div class="text-danger small mt-1">{% for error in form.category.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    {{ form.date.label(class="form-label") }}
+                    {{ form.date(class="form-control") }}
+                    {% if form.date.errors %}
+                        <div class="text-danger small mt-1">{% for error in form.date.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control", rows=3) }}
+                    {% if form.description.errors %}
+                        <div class="text-danger small mt-1">{% for error in form.description.errors %}{{ error }}{% endfor %}</div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" novalidate>
-                    {{ form.hidden_tag() }}
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.amount.label(class="form-label") }}
-                            <div class="input-group">
-                               <span class="input-group-text">₹</span>
-                                {{ form.amount(class="form-control" + (" is-invalid" if form.amount.errors else ""), placeholder="0.00", step="0.01") }}
-                                {% if form.amount.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.amount.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.category.label(class="form-label") }}
-                            {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else "")) }}
-                            {% if form.category.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.category.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.date.label(class="form-label") }}
-                        {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else ""), type="date") }}
-                        {% if form.date.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.date.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3", placeholder="What was this expense for?") }}
-                        {% if form.description.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.description.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
-                        <div class="form-text">Optional - up to 200 characters</div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        {{ form.submit(class="btn btn-primary") }}
-                        <a href="{{ url_for('expenses.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
-                    </div>
-                </form>
+            <div class="mt-4">
+                {{ form.submit(class="btn btn-primary") }}
             </div>
-            <div class="card-footer text-muted small">
-                Created: {{ expense.created_at.strftime('%b %d, %Y at %I:%M %p') }}
-                {% if expense.updated_at != expense.created_at %}
-                | Last updated: {{ expense.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
-                {% endif %}
-            </div>
-        </div>
+        </form>
     </div>
 </div>
 {% endblock %}

@@ -376,53 +376,179 @@ class TestDeleteExpense:
 
 
 class TestDashboard:
-    """Test dashboard and filtering functionality."""
+    """Test the dashboard summary page."""
 
     def test_dashboard_requires_login(self, client):
         """Test dashboard redirects to login for unauthenticated user."""
         response = client.get('/dashboard', follow_redirects=True)
         assert b'Please log in' in response.data
 
-    def test_dashboard_shows_expenses(self, auth_client, app):
-        """Test dashboard displays user's expenses."""
+    def test_dashboard_shows_summary_cards(self, auth_client, app):
+        """Test dashboard shows the summary cards with the right numbers."""
         with app.app_context():
             user = User.query.filter_by(email='test@example.com').first()
-            expense = Expense(
-                amount=99.99,
-                category='Entertainment',
-                date=date.today(),
-                description='Concert tickets',
-                user_id=user.id
-            )
-            db.session.add(expense)
+            db.session.add(Expense(amount=100, category='Food', date=date.today(), user_id=user.id))
+            db.session.add(Expense(amount=300, category='Travel', date=date.today(), user_id=user.id))
             db.session.commit()
 
         response = auth_client.get('/dashboard')
+        assert response.status_code == 200
+        assert b'Total Spending' in response.data
+        assert b'400.00' in response.data
+        assert b'Top Category' in response.data
+        assert b'Travel' in response.data
+
+    def test_dashboard_shows_only_five_recent_expenses(self, auth_client, app):
+        """Dashboard lists the 5 latest expenses, not all of them, and has no charts."""
+        with app.app_context():
+            user = User.query.filter_by(email='test@example.com').first()
+            for i in range(7):
+                db.session.add(Expense(amount=10 + i, category='Food', date=date(2026, 1, i + 1),
+                                       description=f'Item number {i}', user_id=user.id))
+            db.session.commit()
+
+        response = auth_client.get('/dashboard')
+        assert b'Recent Transactions' in response.data
+        assert response.data.count(b'Item number') == 5
+        assert b'Item number 6' in response.data
+        assert b'Item number 0' not in response.data
+        assert b'monthlyChart' not in response.data
+
+    def test_navbar_has_single_add_expense_link(self, auth_client):
+        """Only the navbar should link to Add Expense."""
+        response = auth_client.get('/dashboard')
+        assert response.data.count(b'href="/add"') == 1
+
+    def test_sidebar_links(self, auth_client):
+        """The sidebar has all five pages."""
+        response = auth_client.get('/dashboard')
+        for link in (b'href="/dashboard"', b'href="/expenses"', b'href="/add"',
+                     b'href="/analytics"', b'href="/auth/profile"'):
+            assert link in response.data
+
+
+class TestExpensesPage:
+    """Test the expenses list and filtering."""
+
+    def test_expenses_page_requires_login(self, client):
+        response = client.get('/expenses', follow_redirects=True)
+        assert b'Please log in' in response.data
+
+    def test_expenses_page_shows_expenses(self, auth_client, app):
+        with app.app_context():
+            user = User.query.filter_by(email='test@example.com').first()
+            db.session.add(Expense(amount=99.99, category='Entertainment', date=date.today(),
+                                   description='Concert tickets', user_id=user.id))
+            db.session.commit()
+
+        response = auth_client.get('/expenses')
         assert response.status_code == 200
         assert b'99.99' in response.data
         assert b'Entertainment' in response.data
         assert b'Concert tickets' in response.data
 
-    def test_dashboard_filter_by_category(self, auth_client, app):
-        """Test filtering expenses by category shows only filtered expenses in table."""
+    def test_expenses_filter_by_category(self, auth_client, app):
         with app.app_context():
             user = User.query.filter_by(email='test@example.com').first()
             db.session.add(Expense(amount=50, category='Food', date=date.today(), description='Food item', user_id=user.id))
             db.session.add(Expense(amount=100, category='Bills', date=date.today(), description='Bills item', user_id=user.id))
             db.session.commit()
 
-        response = auth_client.get('/dashboard?category=Food')
+        response = auth_client.get('/expenses?category=Food')
         assert b'Food item' in response.data
         assert b'Bills item' not in response.data
 
-    def test_dashboard_analytics(self, auth_client, app):
-        """Test dashboard shows analytics."""
+
+class TestAnalytics:
+    """Test the analytics page."""
+
+    def test_analytics_requires_login(self, client):
+        response = client.get('/analytics', follow_redirects=True)
+        assert b'Please log in' in response.data
+
+    def test_analytics_shows_charts(self, auth_client, app):
         with app.app_context():
             user = User.query.filter_by(email='test@example.com').first()
             db.session.add(Expense(amount=100, category='Food', date=date.today(), user_id=user.id))
             db.session.commit()
 
-        response = auth_client.get('/dashboard')
-        assert b'Total Spending' in response.data
+        response = auth_client.get('/analytics')
+        assert response.status_code == 200
         assert b'Monthly Spending Trend' in response.data
         assert b'By Category' in response.data
+        assert b'Category Breakdown' in response.data
+
+    def test_analytics_empty_state(self, auth_client):
+        response = auth_client.get('/analytics')
+        assert response.status_code == 200
+        assert b'No expenses yet' in response.data
+
+
+class TestProfile:
+    """Test the profile and change-password pages."""
+
+    def test_profile_requires_login(self, client):
+        response = client.get('/auth/profile', follow_redirects=True)
+        assert b'Please log in' in response.data
+
+    def test_profile_page_loads(self, auth_client):
+        response = auth_client.get('/auth/profile')
+        assert response.status_code == 200
+        assert b'testuser' in response.data
+        assert b'test@example.com' in response.data
+        assert b'Change Password' in response.data
+
+    def test_update_profile(self, auth_client, app):
+        response = auth_client.post('/auth/profile', data={
+            'username': 'newname',
+            'email': 'new@example.com'
+        }, follow_redirects=True)
+        assert b'Profile updated successfully' in response.data
+        with app.app_context():
+            user = User.query.filter_by(email='new@example.com').first()
+            assert user is not None
+            assert user.username == 'newname'
+
+    def test_update_profile_duplicate_username(self, auth_client, app):
+        with app.app_context():
+            other = User(username='taken', email='other@example.com')
+            other.set_password('password123')
+            db.session.add(other)
+            db.session.commit()
+
+        response = auth_client.post('/auth/profile', data={
+            'username': 'taken',
+            'email': 'test@example.com'
+        }, follow_redirects=True)
+        assert b'Username already taken' in response.data
+
+    def test_change_password_success(self, auth_client, app):
+        response = auth_client.post('/auth/change-password', data={
+            'current_password': 'password123',
+            'new_password': 'newpass456',
+            'confirm_password': 'newpass456'
+        }, follow_redirects=True)
+        assert b'Password changed successfully' in response.data
+        with app.app_context():
+            user = User.query.filter_by(email='test@example.com').first()
+            assert user.check_password('newpass456')
+            assert not user.check_password('password123')
+
+    def test_change_password_wrong_current(self, auth_client, app):
+        response = auth_client.post('/auth/change-password', data={
+            'current_password': 'wrongpass',
+            'new_password': 'newpass456',
+            'confirm_password': 'newpass456'
+        }, follow_redirects=True)
+        assert b'Current password is incorrect' in response.data
+        with app.app_context():
+            user = User.query.filter_by(email='test@example.com').first()
+            assert user.check_password('password123')
+
+    def test_change_password_mismatch(self, auth_client):
+        response = auth_client.post('/auth/change-password', data={
+            'current_password': 'password123',
+            'new_password': 'newpass456',
+            'confirm_password': 'different789'
+        }, follow_redirects=True)
+        assert b'Passwords must match' in response.data

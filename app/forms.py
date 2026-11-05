@@ -72,3 +72,43 @@ class FilterForm(FlaskForm):
         ('amount_asc', 'Amount (Low to High)')
     ])
     submit = SubmitField('Apply Filters')
+
+
+class ProfileForm(FlaskForm):
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=3, max=64, message='Username must be between 3 and 64 characters')
+    ])
+    email = StringField('Email', validators=[
+        DataRequired(),
+        Email(message='Please enter a valid email address')
+    ])
+    submit = SubmitField('Save Changes')
+
+    def __init__(self, original_username, original_email, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.original_username = original_username
+        self.original_email = original_email
+
+    def validate_username(self, username):
+        if username.data != self.original_username:
+            if User.query.filter_by(username=username.data).first():
+                raise ValidationError('Username already taken. Please choose a different one.')
+
+    def validate_email(self, email):
+        if email.data != self.original_email:
+            if User.query.filter_by(email=email.data).first():
+                raise ValidationError('Email already registered. Please use a different one.')
+
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[
+        DataRequired(),
+        Length(min=6, message='Password must be at least 6 characters')
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        DataRequired(),
+        EqualTo('new_password', message='Passwords must match')
+    ])
+    submit = SubmitField('Change Password')
